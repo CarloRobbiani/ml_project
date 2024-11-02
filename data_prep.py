@@ -2,6 +2,9 @@ import requests
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
+from sklearn.preprocessing import StandardScaler
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 def load_data():
     # Define your variables
@@ -61,10 +64,32 @@ def select_features(df):
     features = ['AGEP', 'SEX', 'RAC2P', 'HISP', 'SCHL', 'ESR']  # Example features
     X = df[features]
     y = df['WAGP']  # Target variable
-    y = df["WAGP"].values.reshape(-1, 1)
-    y = preprocessing.normalize(y, axis=0)
-    y = y.flatten()
+    #y = df["WAGP"].values.reshape(-1, 1)
+    #y = preprocessing.normalize(y, axis=0)
+    #y = y.flatten()
 
     # Convert categorical variables to numerical using one-hot encoding
     X = pd.get_dummies(X, columns=['SEX', 'RAC2P', 'HISP', 'SCHL', 'ESR'])
     return X,y
+
+def prepare_for_model(X_train, X_test, y_train, y_test):
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    # Convert to PyTorch tensors
+    X_train_tensor = torch.FloatTensor(X_train_scaled)
+    print(f"X_train {X_train_tensor}")
+    y_train_tensor = torch.FloatTensor(y_train.values).reshape(-1, 1)
+    print(f"y_train {y_train_tensor}")
+    X_test_tensor = torch.FloatTensor(X_test_scaled)
+    print(f"X_test {X_test_tensor}")
+    y_test_tensor = torch.FloatTensor(y_test.values).reshape(-1, 1)
+    print(f"y_train {y_test_tensor}")
+
+    # Create DataLoader
+    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    print(train_loader)
+    return X_train_scaled, train_loader, X_train_tensor ,y_train_tensor, X_test_tensor , y_test_tensor 
+
