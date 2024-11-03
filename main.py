@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch
 import numpy as np
 
-
 def GradBoost(X_train, y_train, X_test, y_test):
     """
     Trains a Gradient Boosting Regressor and evaluates its performance.
