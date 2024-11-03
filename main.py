@@ -1,19 +1,12 @@
 from data_prep import *
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from models import *
-
-
-df = load_data()
-
-df = prepare_data(df)
-
-X, y = select_features(df)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+import torch.optim as optim
+import torch.nn as nn
 
 
 def GradBoost():
@@ -27,12 +20,12 @@ def GradBoost():
     y_pred = model.predict(X_test)
 
     # Calculate MSE
-    mse = root_mean_squared_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
     print(f'Mean Squared Error: {mse}')
 
 def own_model(train_loader, X_train_scaled, X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor):
     input_dim = X_train_scaled.shape[1]
-    hidden_dim = 64  # You can adjust this
+    hidden_dim = 128  # Number of neurons in the hidden layer
     output_dim = 1
     model = RegressionModel(input_dim, hidden_dim, output_dim)
 
@@ -78,18 +71,42 @@ def own_model(train_loader, X_train_scaled, X_train_tensor, y_train_tensor, X_te
 def own_model_preds(model, X_train_tensor, X_test_tensor):
     model.eval()
     with torch.no_grad():
-        y_pred_train = model(X_train_tensor).numpy()
-        y_pred_test = model(X_test_tensor).numpy()
+        y_pred_train_log = model(X_train_tensor).numpy()
+        y_pred_test_log = model(X_test_tensor).numpy()
+
+    # Inverse transform to get actual wage predictions
+    y_pred_train = np.expm1(y_pred_train_log)
+    y_pred_test = np.expm1(y_pred_test_log)
+
+    # Convert true values back to original scale
+    y_train_actual = np.expm1(y_train_tensor.numpy())
+    y_test_actual = np.expm1(y_test_tensor.numpy())
 
     # Calculate MSE for train and test sets
-    mse_train = np.mean((y_train.values - y_pred_train.flatten()) ** 2)
-    mse_test = np.mean((y_test.values - y_pred_test.flatten()) ** 2)
+    mse_train = np.mean((y_train_actual - y_pred_train.flatten()) ** 2)
+    mse_test = np.mean((y_test_actual - y_pred_test.flatten()) ** 2)
 
     print(f"Training MSE: {mse_train}")
     print(f"Testing MSE: {mse_test}")
 
 
 if __name__ == "__main__":
-    X_train_scaled, train_loader, X_train_tensor ,y_train_tensor, X_test_tensor , y_test_tensor  = prepare_for_model(X_train, X_test, y_train, y_test)
-    own_model(train_loader,X_train_scaled,  X_train_tensor ,y_train_tensor,
-               X_test_tensor , y_test_tensor)
+    # Set specific_occupation to True or False
+    specific_occupation = False  # choose if you want to filter by specific occupation
+
+    df = load_data()
+    print("Data Loaded")
+
+    df = prepare_data(df, specific_occupation=specific_occupation)
+    print("Data Prepared")
+
+    X, y = select_features(df, specific_occupation=specific_occupation)
+    print("Features Selected")
+
+    # Split the data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Prepare data for the model
+    X_train_scaled, train_loader, X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor = prepare_for_model(X_train, X_test, y_train, y_test)
+
+    own_model(train_loader, X_train_scaled, X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor)
