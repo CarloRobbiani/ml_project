@@ -3,3 +3,4 @@
 .idea/ml_project.iml
 .DS_Store
 data.csv
+label_cache.pkl
